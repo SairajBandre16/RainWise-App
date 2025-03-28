@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:rainwise/pages/ROI.dart';
-import 'package:rainwise/pages/area_plot.dart';
+// import 'package:rainwise/pages/area_plot.dart';
 import 'package:rainwise/pages/storage_types.dart';
 import 'package:rainwise/pages/water_usage.dart';
-
+import 'package:rainwise/pages/map.dart';
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
@@ -83,6 +83,7 @@ class HomePage extends StatelessWidget {
                         mainAxisSpacing: 16,
                         crossAxisSpacing: 16,
                         children: [
+                          // _buildFeatureCard(context, 'Plot Area', Icons.grid_3x3, const Color(0xFFE0F2FE), RainwaterCalculatorPage()),
                           _buildFeatureCard(context, 'Plot Area', Icons.grid_3x3, const Color(0xFFE0F2FE), RainwaterCalculatorPage()),
                           _buildFeatureCard(context, 'Storage Types', Icons.water_drop, const Color(0xFFE0F2FE), StorageTypesPage()),
                           _buildFeatureCard(context, 'Calc ROI', Icons.currency_exchange, const Color(0xFFE0F2FE), ROICalculatorPage()),
