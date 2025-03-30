@@ -11,22 +11,40 @@ class ROICalculatorPage extends StatefulWidget {
 class _ROICalculatorPageState extends State<ROICalculatorPage> {
   final _heightController = TextEditingController();
   final _widthController = TextEditingController();
-  final _storageTypeController = TextEditingController();
 
-  // Fixed values
-  final double initialInvestment = 800000;
-  final int estimatedLifespan = 25;
-  final int paybackPeriod = 7;
+  // Storage Type Options
+  final List<String> _storageTypes = ['Underground', 'Overhead', 'Modular'];
+  String _selectedStorageType = 'Underground';
 
-  // Dynamic values
-  int annualWaterSavings = 3000;
-  int roi = 150;
+  // Cost per unit based on storage type (cost per cubic meter in $)
+  final Map<String, double> _costPerUnit = {
+    'Underground': 400,
+    'Overhead': 250,
+    'Modular': 350,
+  };
+
+  // Water savings efficiency based on storage type (liters saved per sq meter per year)
+  final Map<String, double> _waterSavingsRate = {
+    'Underground': 15,
+    'Overhead': 12,
+    'Modular': 18,
+  };
+
+  // Water cost per liter (in $)
+  final double _waterCostPerLiter = 0.002;  // $2 per 1000 liters
+
+  // Results
+  double initialInvestment = 0;
+  double annualWaterSavings = 0;
+  double annualCostSavings = 0;
+  int estimatedLifespan = 25;
+  double paybackPeriod = 0;
+  double roi = 0;
 
   @override
   void dispose() {
     _heightController.dispose();
     _widthController.dispose();
-    _storageTypeController.dispose();
     super.dispose();
   }
 
@@ -36,9 +54,26 @@ class _ROICalculatorPageState extends State<ROICalculatorPage> {
 
     if (height > 0 && width > 0) {
       setState(() {
+        // Calculate area in square meters
         double area = height * width;
-        annualWaterSavings = (area * 10).toInt();
-        roi = (annualWaterSavings * estimatedLifespan) ~/ initialInvestment * 100;
+        
+        // Calculate initial investment based on storage type and area
+        initialInvestment = area * _costPerUnit[_selectedStorageType]!;
+        
+        // Calculate annual water savings in liters
+        annualWaterSavings = area * _waterSavingsRate[_selectedStorageType]!;
+        
+        // Calculate annual cost savings
+        annualCostSavings = annualWaterSavings * _waterCostPerLiter;
+        
+        // Calculate payback period in years
+        paybackPeriod = initialInvestment / annualCostSavings;
+        
+        // Calculate ROI over the estimated lifespan
+        // ROI = (Net Profit / Cost of Investment) * 100
+        double totalSavings = annualCostSavings * estimatedLifespan;
+        double netProfit = totalSavings - initialInvestment;
+        roi = (netProfit / initialInvestment) * 100;
       });
     } else {
       // Show error message if inputs are invalid
@@ -85,7 +120,7 @@ class _ROICalculatorPageState extends State<ROICalculatorPage> {
                 ),
                 const SizedBox(height: 24),
 
-                // Type of Storage Input
+                // Type of Storage Dropdown
                 const Text(
                   'Type Of Storage',
                   style: TextStyle(
@@ -93,18 +128,29 @@ class _ROICalculatorPageState extends State<ROICalculatorPage> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: TextField(
-                    controller: _storageTypeController,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.blue.shade50,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.blue.shade200),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedStorageType,
+                      isExpanded: true,
+                      items: _storageTypes.map((String type) {
+                        return DropdownMenuItem<String>(
+                          value: type,
+                          child: Text(type, style: const TextStyle(fontSize: 16)),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedStorageType = newValue!;
+                        });
+                      },
                     ),
                   ),
                 ),
@@ -138,10 +184,6 @@ class _ROICalculatorPageState extends State<ROICalculatorPage> {
                                 filled: true,
                                 fillColor: Colors.blue.shade50,
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                enabledBorder: OutlineInputBorder(
-                                  borderSide: BorderSide(color: Colors.blue.shade200),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
                               ),
                             ),
                           ),
@@ -164,10 +206,6 @@ class _ROICalculatorPageState extends State<ROICalculatorPage> {
                                 filled: true,
                                 fillColor: Colors.blue.shade50,
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                enabledBorder: OutlineInputBorder(
-                                  borderSide: BorderSide(color: Colors.blue.shade200),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
                               ),
                             ),
                           ),
@@ -216,17 +254,15 @@ class _ROICalculatorPageState extends State<ROICalculatorPage> {
                   child: Column(
                     children: [
                       _buildResultRow('Initial Investment', '${initialInvestment.toStringAsFixed(0)}\$'),
-                      _buildResultRow('Annual Water Savings', '$annualWaterSavings Ltr.'),
+                      _buildResultRow('Annual Water Savings', '${annualWaterSavings.toStringAsFixed(0)} Ltr.'),
                       _buildResultRow('Estimated Lifespan', '$estimatedLifespan Years'),
-                      _buildResultRow('Payback Period', '$paybackPeriod Years'),
-                      _buildResultRow('ROI', '$roi%'),
+                      _buildResultRow('Payback Period', '${paybackPeriod.toStringAsFixed(1)} Years'),
+                      _buildResultRow('ROI', '${roi.toStringAsFixed(1)}%'),
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
-
-                // Explore Subsidies Button
-                SizedBox(
+                 const SizedBox(height: 24),
+                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {

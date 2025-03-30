@@ -29,14 +29,7 @@ class HomePage extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 38,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF2563EB),
-                    // shadows: [
-                    //   Shadow(
-                    //     blurRadius: 3.2,
-                    //     color: Colors.grey,
-                    //     offset: Offset(0, 2),
-                    //   ),
-                    // ],
+                    color: Color(0xFF1E3A8A),              
                   ),
                 ),
                 const Text(

@@ -218,44 +218,45 @@ class _RainwaterCalculatorPageState extends State<RainwaterCalculatorPage> {
   double predictedRainfall = 0.0;
   double waterCapacity = 0.0;
   final String apiUrl = "http://192.168.55.145:5000/predict";
+  final String geocodingApiKey = "YOUR_GEOCODING_API_KEY"; // Replace with your API key
+  MapController mapController = MapController();
+  LatLng mapCenter = LatLng(19.0760, 72.8777); // Default location: Mumbai
+  TextEditingController searchController = TextEditingController();
 
-  void _calculateWaterCapacity() async {
-  if (points.length == 4) {
-    double centerLat = points.map((p) => p.latitude).reduce((a, b) => a + b) / 4;
-    double centerLon = points.map((p) => p.longitude).reduce((a, b) => a + b) / 4;
-    double elevation = 14.0;
+  /// Fetch latitude & longitude from Geocoding API based on search query
+  Future<void> _searchLocation() async {
+    String query = searchController.text;
+    if (query.isEmpty) return;
 
-    print("Sending Data: { latitude: $centerLat, longitude: $centerLon, elevation: $elevation }");
+    final url = Uri.parse("https://nominatim.openstreetmap.org/search?format=json&q=$query");
 
     try {
-      final response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "latitude": centerLat,
-          "longitude": centerLon,
-          "elevation": elevation,
-        }),
-      );
-
+      final response = await http.get(url);
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        print("Received Response: $data");
+        List<dynamic> data = jsonDecode(response.body);
+        if (data.isNotEmpty) {
+          double lat = double.parse(data[0]["lat"]);
+          double lon = double.parse(data[0]["lon"]);
 
-        setState(() {
-          predictedRainfall = data["predicted_rainfall"];
-          waterCapacity = calculatedArea * (predictedRainfall / 1000) * 1000;
-        });
+          setState(() {
+            mapCenter = LatLng(lat, lon);
+            mapController.move(mapCenter, 14.0); // Move map to searched location
+          });
+        } else {
+          print("No location found");
+        }
       } else {
-        print("Error: ${response.body}");
+        print("Error fetching location: ${response.body}");
       }
     } catch (e) {
-      print("Failed to connect to API: $e");
+      print("Failed to fetch location: $e");
     }
-  } else {
-    print("Not enough points selected!");
   }
-}
+  void _calculateWaterCapacity() {
+    setState(() {
+      waterCapacity = calculatedArea * (predictedRainfall / 1000) * 1000; 
+    });
+  }
 
   void _resetValues() {
     setState(() {
@@ -286,7 +287,6 @@ class _RainwaterCalculatorPageState extends State<RainwaterCalculatorPage> {
     }
     return (area.abs() / 2) * 111320 * 111320;
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -320,6 +320,25 @@ class _RainwaterCalculatorPageState extends State<RainwaterCalculatorPage> {
                   ],
                 ),
                 const SizedBox(height: 20),
+
+                // Search Bar
+                TextField(
+                  controller: searchController,
+                  decoration: InputDecoration(
+                    labelText: "Search Location",
+                    suffixIcon: IconButton(
+                      icon: Icon(Icons.search, color: Colors.blue),
+                      onPressed: _searchLocation,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.blue, width: 2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Map Widget
                 Container(
                   width: double.infinity,
                   height: 300,
@@ -329,8 +348,9 @@ class _RainwaterCalculatorPageState extends State<RainwaterCalculatorPage> {
                     border: Border.all(color: Colors.blue, width: 2),
                   ),
                   child: FlutterMap(
+                    mapController: mapController,
                     options: MapOptions(
-                      center: LatLng(19.0760, 72.8777),
+                      center: mapCenter,
                       zoom: 13.0,
                       onTap: (_, point) => _addPoint(point),
                     ),
@@ -362,6 +382,8 @@ class _RainwaterCalculatorPageState extends State<RainwaterCalculatorPage> {
                   ),
                 ),
                 const SizedBox(height: 20),
+
+                // Buttons
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -370,8 +392,10 @@ class _RainwaterCalculatorPageState extends State<RainwaterCalculatorPage> {
                   ],
                 ),
                 const SizedBox(height: 20),
+
+                // Information Cards
                 _buildInfoCard('Calculated Area', '${calculatedArea.toStringAsFixed(0)} m²'),
-                _buildInfoCard('Predicted Rainfall', '${predictedRainfall.toStringAsFixed(2)}mm'),
+                _buildInfoCard('Predicted Rainfall', '${predictedRainfall.toStringAsFixed(2)} mm'),
                 _buildInfoCard('Water Capacity', '${waterCapacity.toStringAsFixed(0)} ltr'),
               ],
             ),
@@ -383,55 +407,27 @@ class _RainwaterCalculatorPageState extends State<RainwaterCalculatorPage> {
 }
 
 Widget _buildButton(String text, Color color, VoidCallback onPressed) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      child: Text(text, style: const TextStyle(color: Colors.white)),
-    );
-  }
-
+  return ElevatedButton(
+    onPressed: onPressed,
+    style: ElevatedButton.styleFrom(
+      backgroundColor: color,
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    ),
+    child: Text(text, style: const TextStyle(color: Colors.white)),
+  );
+}
 
 Widget _buildInfoCard(String title, String value) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 2,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF023E8A),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  return Container(
+    width: double.infinity,
+    margin: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(10),
+      boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.2), spreadRadius: 2, blurRadius: 4, offset: const Offset(0, 2))],
+    ),
+    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)), Text(value)]),
+  );
+}
